@@ -1,0 +1,81 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-bookflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bookflow}
+      POSTGRES_DB: ${POSTGRES_DB:-bookflow}
+    ports:
+      - "${DB_PORT:-5438}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-bookflow} -d $${POSTGRES_DB:-bookflow}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    image: postgres:16
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend/migrations:/migrations:ro
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER:-bookflow}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-bookflow}
+      PGDATABASE: ${POSTGRES_DB:-bookflow}
+    command:
+      - bash
+      - -c
+      - |
+        psql -v ON_ERROR_STOP=1 -c "CREATE TABLE IF NOT EXISTS schema_migrations(name TEXT PRIMARY KEY)";
+        if [ "$$(psql -tAc "SELECT count(*) FROM schema_migrations")" = "0" ] && [ "$$(psql -tAc "SELECT to_regclass('public.appointments')")" != "" ]; then
+          for f in /migrations/*.sql; do psql -v ON_ERROR_STOP=1 -c "INSERT INTO schema_migrations(name) VALUES ('$$(basename "$$f")')"; done;
+          echo "adopted existing schema";
+        fi;
+        for f in /migrations/*.sql; do
+          n=$$(basename "$$f");
+          if [ "$$(psql -tAc "SELECT 1 FROM schema_migrations WHERE name='$$n'")" != "1" ]; then
+            echo "applying $$n";
+            psql -v ON_ERROR_STOP=1 -f "$$f" && psql -v ON_ERROR_STOP=1 -c "INSERT INTO schema_migrations(name) VALUES ('$$n')";
+          else echo "skipping $$n"; fi;
+        done
+  api:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "${API_PORT:-8085}:8085"
+    environment:
+      PORT: "8085"
+      DATABASE_URL: ${DATABASE_URL:-postgres://bookflow:bookflow@db:5432/bookflow?sslmode=disable}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8085/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: ./web
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8085}
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${WEB_PORT:-3005}:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8085}
+
+volumes:
+  pgdata:

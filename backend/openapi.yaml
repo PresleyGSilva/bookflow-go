@@ -1,0 +1,497 @@
+openapi: 3.0.3
+info:
+  title: BookFlow API
+  version: 1.0.0
+  description: Scheduling API for barbershops/salons (Go + Postgres).
+servers:
+  - url: http://localhost:8085
+tags:
+  - name: auth
+  - name: professionals
+  - name: services
+  - name: working-hours
+  - name: blocks
+  - name: customers
+  - name: availability
+  - name: bookings
+  - name: appointments
+  - name: admin
+  - name: misc
+paths:
+  /healthz:
+    get:
+      tags: [misc]
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+  /openapi.yaml:
+    get:
+      tags: [misc]
+      summary: OpenAPI spec
+      responses:
+        '200':
+          description: YAML spec
+  /api/v1/auth/register:
+    post:
+      tags: [auth]
+      summary: Register user + org
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password, org_name]
+              properties:
+                name: {type: string}
+                email: {type: string}
+                password: {type: string}
+                org_name: {type: string}
+      responses:
+        '201': {description: Created}
+  /api/v1/auth/login:
+    post:
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: {type: string}
+                password: {type: string}
+      responses:
+        '200': {description: OK}
+  /api/v1/auth/refresh:
+    post:
+      tags: [auth]
+      summary: Refresh access token (httpOnly cookie)
+      responses:
+        '200': {description: OK}
+  /api/v1/auth/me:
+    get:
+      tags: [auth]
+      summary: Current user
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: OK}
+  /api/v1/professionals:
+    get:
+      tags: [professionals]
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/OrgID'}]
+      responses: {'200': {description: OK}}
+    post:
+      tags: [professionals]
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/OrgID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: {type: string}
+                email: {type: string}
+                phone: {type: string}
+                timezone: {type: string, default: America/Sao_Paulo}
+      responses: {'201': {description: Created}}
+  /api/v1/professionals/{id}:
+    get:
+      tags: [professionals]
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/OrgID'}, {$ref: '#/components/parameters/ID'}]
+      responses: {'200': {description: OK}}
+    patch:
+      tags: [professionals]
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/OrgID'}, {$ref: '#/components/parameters/ID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: {type: string}
+                email: {type: string}
+                phone: {type: string}
+                timezone: {type: string}
+                active: {type: boolean}
+      responses: {'200': {description: OK}}
+    delete:
+      tags: [professionals]
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/OrgID'}, {$ref: '#/components/parameters/ID'}]
+      responses: {'200': {description: OK}}
+  /api/v1/services:
+    get:
+      tags: [services]
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/OrgID'}]
+      responses: {'200': {description: OK}}
+    post:
+      tags: [services]
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/OrgID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, duration_min]
+              properties:
+                name: {type: string}
+                duration_min: {type: integer}
+                price_cents: {type: integer}
+      responses: {'201': {description: Created}}
+  /api/v1/services/{id}:
+    get:
+      tags: [services]
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/OrgID'}, {$ref: '#/components/parameters/ID'}]
+      responses: {'200': {description: OK}}
+    patch:
+      tags: [services]
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/OrgID'}, {$ref: '#/components/parameters/ID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: {type: string}
+                duration_min: {type: integer}
+                price_cents: {type: integer}
+                active: {type: boolean}
+      responses: {'200': {description: OK}}
+    delete:
+      tags: [services]
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/OrgID'}, {$ref: '#/components/parameters/ID'}]
+      responses: {'200': {description: OK}}
+  /api/v1/working-hours:
+    get:
+      tags: [working-hours]
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: '#/components/parameters/OrgID'}
+        - {name: professional_id, in: query, schema: {type: string}}
+      responses: {'200': {description: OK}}
+    post:
+      tags: [working-hours]
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/OrgID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [professional_id, weekday, start_min, end_min]
+              properties:
+                professional_id: {type: string}
+                weekday: {type: integer, minimum: 0, maximum: 6}
+                start_min: {type: integer}
+                end_min: {type: integer}
+      responses: {'201': {description: Created}}
+  /api/v1/working-hours/{id}:
+    delete:
+      tags: [working-hours]
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/OrgID'}, {$ref: '#/components/parameters/ID'}]
+      responses: {'200': {description: OK}}
+  /api/v1/blocks:
+    get:
+      tags: [blocks]
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: '#/components/parameters/OrgID'}
+        - {name: professional_id, in: query, schema: {type: string}}
+      responses: {'200': {description: OK}}
+    post:
+      tags: [blocks]
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/OrgID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [professional_id, starts_at, end_at]
+              properties:
+                professional_id: {type: string}
+                starts_at: {type: string, format: date-time}
+                end_at: {type: string, format: date-time}
+                reason: {type: string}
+      responses: {'201': {description: Created}}
+  /api/v1/blocks/{id}:
+    delete:
+      tags: [blocks]
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/OrgID'}, {$ref: '#/components/parameters/ID'}]
+      responses: {'200': {description: OK}}
+  /api/v1/customers:
+    get:
+      tags: [customers]
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/OrgID'}]
+      responses: {'200': {description: OK}}
+    post:
+      tags: [customers]
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/OrgID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: {type: string}
+                email: {type: string}
+                phone: {type: string}
+      responses: {'201': {description: Created}}
+  /api/v1/customers/{id}:
+    get:
+      tags: [customers]
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/OrgID'}, {$ref: '#/components/parameters/ID'}]
+      responses: {'200': {description: OK}}
+    patch:
+      tags: [customers]
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/OrgID'}, {$ref: '#/components/parameters/ID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: {type: string}
+                email: {type: string}
+                phone: {type: string}
+      responses: {'200': {description: OK}}
+  /api/v1/availability:
+    get:
+      tags: [availability]
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: '#/components/parameters/OrgID'}
+        - {name: professional_id, in: query, required: true, schema: {type: string}}
+        - {name: service_id, in: query, required: true, schema: {type: string}}
+        - {name: date, in: query, required: true, schema: {type: string, example: '2026-10-10'}}
+      responses: {'200': {description: Slots + timezone}}
+  /api/v1/public/orgs:
+    get:
+      tags: [public]
+      summary: Public org directory (no auth)
+      responses: {'200': {description: Orgs}}
+  /api/v1/public/services:
+    get:
+      tags: [public]
+      summary: Public active services (no auth)
+      parameters:
+        - {name: org_id, in: query, required: true, schema: {type: string}}
+      responses: {'200': {description: Services}}
+  /api/v1/public/professionals:
+    get:
+      tags: [public]
+      summary: Public active professionals (no auth)
+      parameters:
+        - {name: org_id, in: query, required: true, schema: {type: string}}
+      responses: {'200': {description: Professionals}}
+  /api/v1/public/availability:
+    get:
+      tags: [public]
+      summary: Public availability (no auth, org resolved via professional)
+      parameters:
+        - {name: professional_id, in: query, required: true, schema: {type: string}}
+        - {name: service_id, in: query, required: true, schema: {type: string}}
+        - {name: date, in: query, required: true, schema: {type: string, example: '2026-10-10'}}
+      responses: {'200': {description: Slots + timezone}}
+  /api/v1/bookings/public:
+    post:
+      tags: [bookings]
+      summary: Public booking (no auth)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [service_id, professional_id, date, time, customer]
+              properties:
+                service_id: {type: string}
+                professional_id: {type: string}
+                date: {type: string, example: '2026-10-10'}
+                time: {type: string, example: '09:00'}
+                customer:
+                  type: object
+                  required: [name]
+                  properties:
+                    name: {type: string}
+                    email: {type: string}
+                    phone: {type: string}
+      responses:
+        '201': {description: Created}
+        '409': {description: Slot taken (code SLOT_TAKEN)}
+  /api/v1/bookings/public/{code}:
+    get:
+      tags: [bookings]
+      summary: Get public booking by code
+      parameters:
+        - {name: code, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: OK}}
+  /api/v1/bookings/public/{code}/reschedule:
+    post:
+      tags: [bookings]
+      summary: Public reschedule (>= 4h before)
+      parameters:
+        - {name: code, in: path, required: true, schema: {type: string}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                date: {type: string}
+                time: {type: string}
+                starts_at: {type: string, format: date-time}
+      responses:
+        '200': {description: OK}
+        '422': {description: Too late (code RESCHEDULE_TOO_LATE)}
+  /api/v1/bookings/public/{code}/cancel:
+    post:
+      tags: [bookings]
+      summary: Public cancel (>= 2h before)
+      parameters:
+        - {name: code, in: path, required: true, schema: {type: string}}
+      responses:
+        '200': {description: OK}
+        '422': {description: Too late (code CANCEL_TOO_LATE)}
+  /api/v1/appointments:
+    get:
+      tags: [appointments]
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: '#/components/parameters/OrgID'}
+        - {name: from, in: query, schema: {type: string}}
+        - {name: to, in: query, schema: {type: string}}
+        - {name: professional_id, in: query, schema: {type: string}}
+        - {name: status, in: query, schema: {type: string}}
+      responses: {'200': {description: OK}}
+    post:
+      tags: [appointments]
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/OrgID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [service_id, professional_id]
+              properties:
+                service_id: {type: string}
+                professional_id: {type: string}
+                customer_id: {type: string}
+                date: {type: string}
+                time: {type: string}
+                starts_at: {type: string, format: date-time}
+                notes: {type: string}
+      responses:
+        '201': {description: Created}
+        '409': {description: Slot taken}
+  /api/v1/appointments/{id}/reschedule:
+    post:
+      tags: [appointments]
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/OrgID'}, {$ref: '#/components/parameters/ID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                date: {type: string}
+                time: {type: string}
+                starts_at: {type: string, format: date-time}
+      responses: {'200': {description: OK}}
+  /api/v1/appointments/{id}/cancel:
+    post:
+      tags: [appointments]
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/OrgID'}, {$ref: '#/components/parameters/ID'}]
+      responses: {'200': {description: OK}}
+  /api/v1/admin/calendar:
+    get:
+      tags: [admin]
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: '#/components/parameters/OrgID'}
+        - {name: from, in: query, schema: {type: string}}
+        - {name: to, in: query, schema: {type: string}}
+        - {name: professional_id, in: query, schema: {type: string}}
+      responses: {'200': {description: OK}}
+  /api/v1/admin/reports:
+    get:
+      tags: [admin]
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: '#/components/parameters/OrgID'}
+        - {name: from, in: query, schema: {type: string}}
+        - {name: to, in: query, schema: {type: string}}
+      responses: {'200': {description: OK}}
+  /api/v1/admin/settings:
+    get:
+      tags: [admin]
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/OrgID'}]
+      responses: {'200': {description: OK}}
+    patch:
+      tags: [admin]
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/OrgID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cancel_min_hours: {type: number}
+                reschedule_min_hours: {type: number}
+                slot_step_min: {type: integer}
+      responses: {'200': {description: OK}}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    OrgID:
+      name: X-Org-ID
+      in: header
+      required: true
+      schema: {type: string}
+    ID:
+      name: id
+      in: path
+      required: true
+      schema: {type: string}
